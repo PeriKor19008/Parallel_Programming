@@ -329,11 +329,11 @@ void sirialazed(int n_trials){
             for (i = 0; i < nvars; i++)
                 best_pt[i] = endpt[i];
         }
-        printf("%d\n",trial);
+        //printf("%d\n",trial);
     }
     t1 = get_wtime();
 
-    printf("\n\nFINAL RESULTS:\n");
+    printf("\n\nFINAL RESULTS:Serial code\n");
     printf("Elapsed time = %.3lf s\n", t1-t0);
     printf("Total number of trials = %d\n", ntrials);
     printf("Total number of function evaluations = %ld\n", funevals);
@@ -368,9 +368,10 @@ void OpenMp(int n_trials){
 
     t0 = get_wtime();
     omp_set_num_threads(4);
-#pragma omp parallel
+#pragma omp parallel private(endpt)
     {
         double local_best_fx=best_fx;
+
         double fx;
 #pragma omp for
 
@@ -391,26 +392,28 @@ void OpenMp(int n_trials){
 #if DEBUG
                 printf("f(x) = %15.7le\n", fx);
 #endif
-                if (fx < local_best_fx) {
-                    best_trial = trial;
-                    best_jj = jj;
-                    best_fx = fx;
-                    for (i = 0; i < nvars; i++)
-                        best_pt[i] = endpt[i];
+#pragma omp critical
+                {
+                    if (fx < best_fx) {
+
+                        best_trial = trial;
+                        best_jj = jj;
+                        best_fx = fx;
+                        for (i = 0; i < nvars; i++)
+                            best_pt[i] = endpt[i];
+
+                    }
                 }
-                printf("%d\n",trial);
+                //printf("%d\n",trial);
             }
         
 
-#pragma omp critical
-    {
-        if(local_best_fx<best_fx) best_fx=local_best_fx;
-    }
-        t1 = get_wtime();
-    }
 
 
-    printf("\n\nFINAL RESULTS:\n");
+    }
+    t1 = get_wtime();
+
+    printf("\n\nFINAL RESULTS:OpenMP\n");
     printf("Elapsed time = %.3lf s\n", t1-t0);
     printf("Total number of trials = %d\n", ntrials);
     printf("Total number of function evaluations = %ld\n", funevals);
@@ -423,13 +426,107 @@ void OpenMp(int n_trials){
 
 
 
+
+
+
+void OpenMpTasks(int n_trials){
+    double startpt[MAXVARS], endpt[MAXVARS];
+    int itermax = IMAX;
+    double rho = RHO_BEGIN;
+    double epsilon = EPSMIN;
+    int nvars;
+    int trial, ntrials;
+    double fx;
+    int i, jj;
+    double t0, t1;
+
+    double best_fx = 1e10;
+    double best_pt[MAXVARS];
+    int best_trial = -1;
+    int best_jj = -1;
+
+    for (i = 0; i < MAXVARS; i++) best_pt[i] = 0.0;
+
+    ntrials = 4*n_trials;	/* number of trials */
+    nvars = 32;		/* number of variables (problem dimension) */
+    srand48(1);
+
+    t0 = get_wtime();
+#pragma omp parallel num_threads(4)
+    {
+#pragma omp single nowait
+        {
+
+
+            for (trial = 0; trial < ntrials; trial++) {
+#pragma omp task shared(best_fx)
+                {
+                    /* starting guess for rosenbrock test function, search space in [-5, 5) */
+                    for (i = 0; i < nvars; i++) {
+                        startpt[i] = 10.0 * drand48() - 5.0;
+                    }
+
+                    jj = hooke(nvars, startpt, endpt, rho, epsilon, itermax);
+#if DEBUG
+                    printf("\n\n\nHOOKE %d USED %d ITERATIONS, AND RETURNED\n", trial, jj);
+                    for (i = 0; i < nvars; i++)
+                        printf("x[%3d] = %15.7le \n", i, endpt[i]);
+#endif
+
+                    fx = f(endpt, nvars);
+#if DEBUG
+                    printf("f(x) = %15.7le\n", fx);
+#endif
+#pragma omp critical
+                    {
+
+                        if (fx < best_fx) {
+                            best_trial = trial;
+                            best_jj = jj;
+                            best_fx = fx;
+                            for (i = 0; i < nvars; i++)
+                                best_pt[i] = endpt[i];
+                        }
+                    }
+                    //printf("%d\n", trial);
+                }
+            }
+        }
+    }
+    t1 = get_wtime();
+
+    printf("\n\nFINAL RESULTS:OpenMP tasks\n");
+    printf("Elapsed time = %.3lf s\n", t1-t0);
+    printf("Total number of trials = %d\n", ntrials);
+    printf("Total number of function evaluations = %ld\n", funevals);
+    printf("Best result at trial %d used %d iterations, and returned\n", best_trial, best_jj);
+    for (i = 0; i < nvars; i++) {
+        printf("x[%3d] = %15.7le \n", i, best_pt[i]);
+    }
+    printf("f(x) = %15.7le\n", best_fx);
+}
+
 int main(int argc, char *argv[])
 {
-    int N=100;
+    int N=1000;
+
+
+    printf("sirialized version\n");
     sirialazed(N);
     for(int i=0;i<10;i++){
         printf("------------\n");
     }
+    printf("OpenMpTasks version\n");
+    OpenMpTasks(N);
+    for(int i=0;i<10;i++){
+        printf("------------\n");
+    }
+    printf("OpenMp version\n");
     OpenMp(N);
+
+
+
     return 0;
 }
+
+
