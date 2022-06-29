@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 int main(int argc, char** argv) {
+    printf("Test!\n");
     // Initialize the MPI environment
     MPI_Init(&argc, &argv);
 

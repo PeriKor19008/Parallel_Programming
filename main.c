@@ -530,7 +530,7 @@ void MPI (int n_trials, int argc, char **argv){
     nvars = 32;		/* number of variables (problem dimension) */
     srand48(1);
 
-    MPI_Init(&argc, &argv);
+    MPI_Init(NULL, NULL);
 
     int rank;
     int size;
