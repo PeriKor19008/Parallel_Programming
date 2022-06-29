@@ -138,6 +138,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <omp.h>
+#include <mpi.h>
 
 #define MAXVARS		(250)	/* max # of variables	     */
 #define RHO_BEGIN	(0.9)	/* stepsize geometric shrink */
@@ -282,7 +283,7 @@ double get_wtime(void)
     return (double)t.tv_sec + (double)t.tv_usec*1.0e-6;
 }
 
-void sirialazed(int n_trials){
+void serialized(int n_trials){
     double startpt[MAXVARS], endpt[MAXVARS];
     int itermax = IMAX;
     double rho = RHO_BEGIN;
@@ -506,13 +507,108 @@ void OpenMpTasks(int n_trials){
     printf("f(x) = %15.7le\n", best_fx);
 }
 
-int main(int argc, char *argv[])
+void MPI (int n_trials, int argc, char **argv){
+    double startpt[MAXVARS], endpt[MAXVARS];
+    int itermax = IMAX;
+    double rho = RHO_BEGIN;
+    double epsilon = EPSMIN;
+    int nvars;
+    int trial, ntrials;
+    double fx;
+    int i, jj;
+    double t0, t1;
+
+    double best_fx = 1e10;
+    double best_pt[MAXVARS];
+    int best_trial = -1;
+    int best_jj = -1;
+    double best_fx_and_rank[2];
+
+    for (i = 0; i < MAXVARS; i++) best_pt[i] = 0.0;
+
+    ntrials = 4*n_trials;	/* number of trials */
+    nvars = 32;		/* number of variables (problem dimension) */
+    srand48(1);
+
+    MPI_Init(&argc, &argv);
+
+    int rank;
+    int size;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    t0 = get_wtime();
+    for (trial = 0; trial < ntrials % size; trial++) {
+        /* starting guess for rosenbrock test function, search space in [-5, 5) */
+        for (i = 0; i < nvars; i++) {
+            startpt[i] = 10.0*drand48()-5.0;
+        }
+
+        jj = hooke(nvars, startpt, endpt, rho, epsilon, itermax);
+#if DEBUG
+        printf("\n\n\nHOOKE %d USED %d ITERATIONS, AND RETURNED\n", trial, jj);
+		for (i = 0; i < nvars; i++)
+			printf("x[%3d] = %15.7le \n", i, endpt[i]);
+#endif
+
+        fx = f(endpt, nvars);
+#if DEBUG
+        printf("f(x) = %15.7le\n", fx);
+#endif
+        if (fx < best_fx) {
+            best_trial = trial;
+            best_jj = jj;
+            best_fx = fx;
+            for (i = 0; i < nvars; i++)
+                best_pt[i] = endpt[i];
+        }
+        //printf("%d\n",trial);
+    }
+
+    MPI_Allreduce(&best_fx_and_rank, &best_fx, 1, MPI_DOUBLE, MPI_MINLOC, MPI_COMM_WORLD);
+
+    if (best_fx_and_rank[1] != 0)
+    {
+	if (rank == best_fx_and_rank[1])
+	{
+		MPI_Send(&best_trial, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+		MPI_Send(&best_jj, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
+		MPI_Send(best_pt, 1, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
+	}
+	else if (rank == 0)
+	{
+		MPI_Status status;
+		MPI_Recv(&best_trial, 1, MPI_INT, best_fx_and_rank[1], 0, MPI_COMM_WORLD, &status);
+		MPI_Recv(&best_jj, 1, MPI_INT, best_fx_and_rank[1], 1, MPI_COMM_WORLD, &status);
+		MPI_Recv(best_pt, 1, MPI_DOUBLE, best_fx_and_rank[1], 2, MPI_COMM_WORLD, &status);
+	}
+    }
+
+    MPI_Finalize();
+
+    best_fx = best_fx_and_rank[0];
+
+    t1 = get_wtime();
+
+    printf("\n\nFINAL RESULTS:Serial code\n");
+    printf("Elapsed time = %.3lf s\n", t1-t0);
+    printf("Total number of trials = %d\n", ntrials);
+    printf("Total number of function evaluations = %ld\n", funevals);
+    printf("Best result at trial %d used %d iterations, and returned\n", best_trial, best_jj);
+    for (i = 0; i < nvars; i++) {
+        printf("x[%3d] = %15.7le \n", i, best_pt[i]);
+    }
+    printf("f(x) = %15.7le\n", best_fx);
+}
+
+int main(int argc, char **argv)
 {
     int N=1000;
 
 
-    printf("sirialized version\n");
-    sirialazed(N);
+    /*printf("Serialized version\n");
+    serialized(N);
     for(int i=0;i<10;i++){
         printf("------------\n");
     }
@@ -522,7 +618,10 @@ int main(int argc, char *argv[])
         printf("------------\n");
     }
     printf("OpenMp version\n");
-    OpenMp(N);
+    OpenMp(N);*/
+    printf("MPI Version\n");
+    MPI(N, argc, argv);
+
 
 
 
