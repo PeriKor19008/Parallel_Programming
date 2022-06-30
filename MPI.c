@@ -374,7 +374,7 @@ void MPI (int n_trials, int argc, char **argv){
 
 int main(int argc, char **argv)
 {
-    int N=640;
+    int N=64000;
     MPI(N, argc, argv);
     return 0;
 }
