@@ -288,17 +288,21 @@ void MPI (int n_trials, int argc, char **argv){
     int i, jj;
     double t0, t1;
 
-    double best_fx = 1e10;
     double best_pt[MAXVARS];
     int best_trial = -1;
     int best_jj = -1;
-    double best_fx_and_rank[2];
+
+    struct 
+    {
+	double value;
+	int rank;
+    } best_fx_and_rank, best_fx;
+    best_fx.value = 1e10;
 
     for (i = 0; i < MAXVARS; i++) best_pt[i] = 0.0;
 
     ntrials = 4*n_trials;	/* number of trials */
     nvars = 32;		/* number of variables (problem dimension) */
-    srand48(1);
 
     MPI_Init(NULL, NULL);
 
@@ -313,6 +317,7 @@ void MPI (int n_trials, int argc, char **argv){
     for (trial = 0; trial < (int)ntrials / size; trial++) {
         /* starting guess for rosenbrock test function, search space in [-5, 5) */
         for (i = 0; i < nvars; i++) {
+    	    srand48(time(0));
             startpt[i] = 10.0*drand48()-5.0;
         }
 
@@ -327,21 +332,30 @@ void MPI (int n_trials, int argc, char **argv){
 #if DEBUG
         printf("f(x) = %15.7le\n", fx);
 #endif
-        if (fx < best_fx) {
+        if (fx < best_fx.value) {
             best_trial = trial;
             best_jj = jj;
-            best_fx = fx;
+            best_fx.value = fx;
+	    best_fx.rank = rank;
             for (i = 0; i < nvars; i++)
                 best_pt[i] = endpt[i];
         }
         //printf("%d\n",trial);
+	
     }
 
-    MPI_Allreduce(&best_fx_and_rank, &best_fx, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
-
-    if (best_fx_and_rank[1] != 0)
+    MPI_Barrier(MPI_COMM_WORLD);
+    /*if (rank == 0)
     {
-	if (rank == best_fx_and_rank[1])
+	best_fx.value = 50000.0;
+    }*/
+    MPI_Allreduce(&best_fx, &best_fx_and_rank, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    printf("best_fx_and_rank.value = %lf and best_fx_and_rank.rank = %d\n", best_fx_and_rank.value, best_fx_and_rank.rank);
+
+    if (best_fx_and_rank.rank != 0)
+    {
+	if (rank == best_fx_and_rank.rank)
 	{
 		MPI_Send(&best_trial, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
 		MPI_Send(&best_jj, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
@@ -350,16 +364,16 @@ void MPI (int n_trials, int argc, char **argv){
 	else if (rank == 0)
 	{
 		MPI_Status status;
-		MPI_Recv(&best_trial, 1, MPI_INT, best_fx_and_rank[1], 0, MPI_COMM_WORLD, &status);
-		MPI_Recv(&best_jj, 1, MPI_INT, best_fx_and_rank[1], 1, MPI_COMM_WORLD, &status);
-		MPI_Recv(&best_pt, MAXVARS, MPI_DOUBLE, best_fx_and_rank[1], 2, MPI_COMM_WORLD, &status);
+		MPI_Recv(&best_trial, 1, MPI_INT, best_fx_and_rank.rank, 0, MPI_COMM_WORLD, &status);
+		MPI_Recv(&best_jj, 1, MPI_INT, best_fx_and_rank.rank, 1, MPI_COMM_WORLD, &status);
+		MPI_Recv(&best_pt, MAXVARS, MPI_DOUBLE, best_fx_and_rank.rank, 2, MPI_COMM_WORLD, &status);
 	}
     }
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (rank == 0)
     {
-    	best_fx = best_fx_and_rank[0];
+    	best_fx.value = best_fx_and_rank.value;
 
    	 t1 = get_wtime();
 
@@ -374,7 +388,7 @@ void MPI (int n_trials, int argc, char **argv){
        	 	printf("x[%3d] = %15.7le \n", i, best_pt[i]);
    	 }
 
-    	 printf("f(x) = %15.7le\n", best_fx);
+    	 printf("f(x) = %15.7le\n", best_fx.value);
     }
     MPI_Finalize();
 }
@@ -385,5 +399,3 @@ int main(int argc, char **argv)
     MPI(N, argc, argv);
     return 0;
 }
-
-

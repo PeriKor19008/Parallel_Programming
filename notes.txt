@@ -1,1 +1,2 @@
 OpenMP with reduction
+Fix drand48 to actually give different random result. Seed is static

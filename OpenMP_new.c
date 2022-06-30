@@ -134,6 +134,8 @@
 #include <math.h>
 #include <time.h>
 #include <sys/time.h>
+#include <omp.h>
+#include <mpi.h>
 
 #define MAXVARS		(250)	/* max # of variables	     */
 #define RHO_BEGIN	(0.9)	/* stepsize geometric shrink */
@@ -275,14 +277,14 @@ double get_wtime(void)
     return (double)t.tv_sec + (double)t.tv_usec*1.0e-6;
 }
 
-void serialized(int n_trials){
+void OpenMp(int n_trials){
     double startpt[MAXVARS], endpt[MAXVARS];
     int itermax = IMAX;
     double rho = RHO_BEGIN;
     double epsilon = EPSMIN;
     int nvars;
     int trial, ntrials;
-    double fx;
+
     int i, jj;
     double t0, t1;
 
@@ -291,46 +293,68 @@ void serialized(int n_trials){
     int best_trial = -1;
     int best_jj = -1;
 
+    double local_best_fx = 1e10;
+    double local_best_pt[MAXVARS];
+    int local_best_trial = -1;
+    int local_best_jj = -1;
+
     for (i = 0; i < MAXVARS; i++) best_pt[i] = 0.0;
 
     ntrials = 4*n_trials;	/* number of trials */
     nvars = 32;		/* number of variables (problem dimension) */
-    //srand48(1);
+    srand48(1);
 
     t0 = get_wtime();
-    for (trial = 0; trial < ntrials; trial++) {
-        /* starting guess for rosenbrock test function, search space in [-5, 5) */
-        for (i = 0; i < nvars; i++) 
-	{
-            sleep(1);
-    	    srand48(time(0));
-            startpt[i] = 10.0*drand48()-5.0;
-	    printf("startpt[%d] is %lf\n", i, startpt[i]);
-        }
+    omp_set_num_threads(16);
+#pragma omp parallel firstprivate(endpt, local_best_fx, local_best_pt, local_best_trial, local_best_jj) shared(best_fx, best_pt, best_trial, best_jj)
+    {
+        double local_best_fx=best_fx;
 
-        jj = hooke(nvars, startpt, endpt, rho, epsilon, itermax);
+        double fx;
+#pragma omp for schedule(dynamic)
+
+            for (trial = 0; trial < ntrials; trial++) {
+                /* starting guess for rosenbrock test function, search space in [-5, 5) */
+                for (i = 0; i < nvars; i++) {
+                    startpt[i] = 10.0*drand48()-5.0;
+                }
+
+                jj = hooke(nvars, startpt, endpt, rho, epsilon, itermax);
 #if DEBUG
-        printf("\n\n\nHOOKE %d USED %d ITERATIONS, AND RETURNED\n", trial, jj);
+                printf("\n\n\nHOOKE %d USED %d ITERATIONS, AND RETURNED\n", trial, jj);
 		for (i = 0; i < nvars; i++)
 			printf("x[%3d] = %15.7le \n", i, endpt[i]);
 #endif
 
-        fx = f(endpt, nvars);
+                fx = f(endpt, nvars);
 #if DEBUG
-        printf("f(x) = %15.7le\n", fx);
+                printf("f(x) = %15.7le\n", fx);
 #endif
-        if (fx < best_fx) {
-            best_trial = trial;
-            best_jj = jj;
-            best_fx = fx;
-            for (i = 0; i < nvars; i++)
-                best_pt[i] = endpt[i];
-        }
-        //printf("%d\n",trial);
-    }
-    t1 = get_wtime();
+                if (fx < best_fx) {
 
-    printf("\n\nFINAL RESULTS:Serial code\n");
+                    local_best_trial = trial;
+                    local_best_jj = jj;
+                    local_best_fx = fx;
+                    for (i = 0; i < nvars; i++)
+                        local_best_pt[i] = endpt[i];
+
+                }
+                //printf("%d\n",trial);
+            }
+#pragma omp critical
+            {
+	    if (local_best_fx < best_fx) {
+
+                   best_trial = local_best_trial;
+                   best_jj = local_best_jj;
+                   best_fx = local_best_fx;
+                   for (i = 0; i < nvars; i++)
+                       best_pt[i] = local_best_pt[i];
+                   }
+    	    }
+    t1 = get_wtime();
+    }
+    printf("\n\nFINAL RESULTS:OpenMP\n");
     printf("Elapsed time = %.3lf s\n", t1-t0);
     printf("Total number of trials = %d\n", ntrials);
     printf("Total number of function evaluations = %ld\n", funevals);
@@ -344,6 +368,8 @@ void serialized(int n_trials){
 int main(int argc, char **argv)
 {
     int N=10;
-    serialized(N);
+    OpenMp(N);
     return 0;
 }
+
+
