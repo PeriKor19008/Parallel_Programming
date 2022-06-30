@@ -292,16 +292,9 @@ void MPI (int n_trials, int argc, char **argv){
     int best_trial = -1;
     int best_jj = -1;
 
-    struct 
-    {
-	double value;
-	int rank;
-    } best_fx_and_rank, best_fx;
-    best_fx.value = 1e10;
-
+    
     for (i = 0; i < MAXVARS; i++) best_pt[i] = 0.0;
 
-    ntrials = 4*n_trials;	/* number of trials */
     nvars = 32;		/* number of variables (problem dimension) */
 
     MPI_Init(NULL, NULL);
@@ -312,13 +305,23 @@ void MPI (int n_trials, int argc, char **argv){
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    struct 
+    {
+	double value;
+	int rank;
+    } best_fx_and_rank, best_fx;
+
+    best_fx.value = 1e10;
+    best_fx.rank = rank;
+
+    srand48(time(0) + rank);
     t0 = get_wtime();
 
     for (trial = 0; trial < (int)ntrials / size; trial++) {
         /* starting guess for rosenbrock test function, search space in [-5, 5) */
         for (i = 0; i < nvars; i++) {
-    	    srand48(time(0));
             startpt[i] = 10.0*drand48()-5.0;
+	    //printf("startpt[%d] = %lf\n", i, startpt[i]);
         }
 
         jj = hooke(nvars, startpt, endpt, rho, epsilon, itermax);
@@ -336,7 +339,6 @@ void MPI (int n_trials, int argc, char **argv){
             best_trial = trial;
             best_jj = jj;
             best_fx.value = fx;
-	    best_fx.rank = rank;
             for (i = 0; i < nvars; i++)
                 best_pt[i] = endpt[i];
         }
@@ -345,13 +347,8 @@ void MPI (int n_trials, int argc, char **argv){
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
-    /*if (rank == 0)
-    {
-	best_fx.value = 50000.0;
-    }*/
     MPI_Allreduce(&best_fx, &best_fx_and_rank, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
-    printf("best_fx_and_rank.value = %lf and best_fx_and_rank.rank = %d\n", best_fx_and_rank.value, best_fx_and_rank.rank);
 
     if (best_fx_and_rank.rank != 0)
     {
@@ -395,7 +392,7 @@ void MPI (int n_trials, int argc, char **argv){
 
 int main(int argc, char **argv)
 {
-    int N=1000;
+    int N=64000;
     MPI(N, argc, argv);
     return 0;
 }

@@ -288,22 +288,13 @@ void MPI_OpenMP (int n_trials, int argc, char **argv){
     int i, jj;
     double t0, t1;
 
-    double best_fx = 1e10;
     double best_pt[MAXVARS];
     int best_trial = -1;
     int best_jj = -1;
-    double best_fx_and_rank[2];
-
-    double local_best_fx = 1e10;
-    double local_best_pt[MAXVARS];
-    int local_best_trial = -1;
-    int local_best_jj = -1;
 
     for (i = 0; i < MAXVARS; i++) best_pt[i] = 0.0;
 
-    ntrials = 4*n_trials;	/* number of trials */
     nvars = 32;		/* number of variables (problem dimension) */
-    srand48(1);
 
     MPI_Init(NULL, NULL);
 
@@ -313,14 +304,26 @@ void MPI_OpenMP (int n_trials, int argc, char **argv){
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    struct
+    {
+         double value;
+         int rank;
+    } best_fx_and_rank, best_fx;
+
+    best_fx.value = 1e10;
+    best_fx.rank = rank;
+
+    srand48(time(0) + rank);
+
     t0 = get_wtime();
-    #pragma omp parallel firstprivate(local_best_fx, local_best_pt, local_best_trial, local_best_jj) shared(best_fx, best_pt, best_trial, best_jj)
+    #pragma omp parallel shared(best_fx)
     {
     	#pragma omp for schedule(dynamic)
    	 for (trial = 0; trial < (int)ntrials / size; trial++) {
  	       /* starting guess for rosenbrock test function, search space in [-5, 5) */
        	 for (i = 0; i < nvars; i++) {
        	     startpt[i] = 10.0*drand48()-5.0;
+	     //printf("startpt[%d] = %lf\n", i, startpt[i]);
        	 }
 	
        		 jj = hooke(nvars, startpt, endpt, rho, epsilon, itermax);
@@ -334,33 +337,28 @@ void MPI_OpenMP (int n_trials, int argc, char **argv){
 #if DEBUG
        		 printf("f(x) = %15.7le\n", fx);
 #endif
-       		 if (fx < local_best_fx) {
-       		     local_best_trial = trial;
-       		     local_best_jj = jj;
-       		     local_best_fx = fx;
+	#pragma omp critical
+	 {
+       	 	if (fx < best_fx.value) {
+       		     best_trial = trial;
+       		     best_jj = jj;
+       		     best_fx.value= fx;
        		     for (i = 0; i < nvars; i++)
-       		         local_best_pt[i] = endpt[i];
+       		         best_pt[i] = endpt[i];
        		 }
+	 }
 		
 	}
-	#pragma omp critical
-	{
-	if (local_best_fx< best_fx) {
-       	     best_trial = local_best_trial;
-       	     best_jj = local_best_jj;
-       	     best_fx = local_best_fx;
-       	     for (i = 0; i < nvars; i++)
-                best_pt[i] = local_best_pt[i];
-	}
         //printf("%d\n",trial);
-    	}
+    	
     }
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Allreduce(&best_fx, &best_fx_and_rank, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
 
-    MPI_Allreduce(&best_fx_and_rank, &best_fx, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
-
-    if (best_fx_and_rank[1] != 0)
+    if (best_fx_and_rank.rank != 0)
     {
-	if (rank == best_fx_and_rank[1])
+	if (rank == best_fx_and_rank.rank)
 	{
 		MPI_Send(&best_trial, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
 		MPI_Send(&best_jj, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
@@ -369,16 +367,16 @@ void MPI_OpenMP (int n_trials, int argc, char **argv){
 	else if (rank == 0)
 	{
 		MPI_Status status;
-		MPI_Recv(&best_trial, 1, MPI_INT, best_fx_and_rank[1], 0, MPI_COMM_WORLD, &status);
-		MPI_Recv(&best_jj, 1, MPI_INT, best_fx_and_rank[1], 1, MPI_COMM_WORLD, &status);
-		MPI_Recv(&best_pt, MAXVARS, MPI_DOUBLE, best_fx_and_rank[1], 2, MPI_COMM_WORLD, &status);
+		MPI_Recv(&best_trial, 1, MPI_INT, best_fx_and_rank.rank, 0, MPI_COMM_WORLD, &status);
+		MPI_Recv(&best_jj, 1, MPI_INT, best_fx_and_rank.rank, 1, MPI_COMM_WORLD, &status);
+		MPI_Recv(&best_pt, MAXVARS, MPI_DOUBLE, best_fx_and_rank.rank, 2, MPI_COMM_WORLD, &status);
 	}
     }
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (rank == 0)
     {
-    	best_fx = best_fx_and_rank[0];
+    	best_fx.value = best_fx_and_rank.value;
 
    	 t1 = get_wtime();
 
@@ -393,14 +391,14 @@ void MPI_OpenMP (int n_trials, int argc, char **argv){
        	 	printf("x[%3d] = %15.7le \n", i, best_pt[i]);
    	 }
 
-    	 printf("f(x) = %15.7le\n", best_fx);
+    	 printf("f(x) = %15.7le\n", best_fx.value);
     }
     MPI_Finalize();
 }
 
 int main(int argc, char **argv)
 {
-    int N=1000;
+    int N=64000;
     MPI_OpenMP(N, argc, argv);
     return 0;
 }

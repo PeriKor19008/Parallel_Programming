@@ -293,19 +293,18 @@ void serialized(int n_trials){
 
     for (i = 0; i < MAXVARS; i++) best_pt[i] = 0.0;
 
-    ntrials = 4*n_trials;	/* number of trials */
     nvars = 32;		/* number of variables (problem dimension) */
-    //srand48(1);
+    srand48(time(0));
 
     t0 = get_wtime();
     for (trial = 0; trial < ntrials; trial++) {
         /* starting guess for rosenbrock test function, search space in [-5, 5) */
         for (i = 0; i < nvars; i++) 
 	{
-            sleep(1);
-    	    srand48(time(0));
+	    //printf("time(0) = %ld\n", time(0));
+	    i++;
             startpt[i] = 10.0*drand48()-5.0;
-	    printf("startpt[%d] is %lf\n", i, startpt[i]);
+	    //printf("startpt[%d] is %lf\n", i, startpt[i]);
         }
 
         jj = hooke(nvars, startpt, endpt, rho, epsilon, itermax);
@@ -343,7 +342,12 @@ void serialized(int n_trials){
 
 int main(int argc, char **argv)
 {
-    int N=10;
+    int N=64000;
+    /*for ( int i = 0; i < 5; i++)
+    {
+	srand48(time(0));
+	printf("drand48() = %lf\n", drand48());
+    }*/
     serialized(N);
     return 0;
 }
