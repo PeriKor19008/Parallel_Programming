@@ -293,6 +293,11 @@ void OpenMpTasks(int n_trials){
     int best_trial = -1;
     int best_jj = -1;
 
+    double local_best_fx = 1e10;
+    double local_best_pt[MAXVARS];
+    int local_best_trial = -1;
+    int local_best_jj = -1;
+
     for (i = 0; i < MAXVARS; i++) best_pt[i] = 0.0;
 
     ntrials = 4*n_trials;	/* number of trials */
@@ -307,7 +312,7 @@ void OpenMpTasks(int n_trials){
 
 
             for (trial = 0; trial < ntrials; trial++) {
-#pragma omp task shared(best_fx)
+#pragma omp task shared(best_fx, best_pt, best_trial, best_jj) firstprivate(local_best_fx, local_best_pt, local_best_trial, local_best_jj) 
                 {
                     /* starting guess for rosenbrock test function, search space in [-5, 5) */
                     for (i = 0; i < nvars; i++) {
@@ -325,25 +330,33 @@ void OpenMpTasks(int n_trials){
 #if DEBUG
                     printf("f(x) = %15.7le\n", fx);
 #endif
-#pragma omp critical
-                    {
-
-                        if (fx < best_fx) {
-                            best_trial = trial;
-                            best_jj = jj;
-                            best_fx = fx;
-                            for (i = 0; i < nvars; i++)
-                                best_pt[i] = endpt[i];
-                        }
+                    if (fx < best_fx) {
+                        local_best_trial = trial;
+                        local_best_jj = jj;
+                        local_best_fx = fx;
+                        for (i = 0; i < nvars; i++)
+                            local_best_pt[i] = endpt[i];
                     }
                     //printf("%d\n", trial);
                 }
+#pragma omp critical
+                {
+
+		if (local_best_fx < best_fx) {
+                        best_trial = local_best_trial;
+                        best_jj = local_best_jj;
+                        best_fx = local_best_fx;
+                        for (i = 0; i < nvars; i++)
+                            best_pt[i] = local_best_pt[i];
+                        }
+	        }
+
             }
         }
     }
     t1 = get_wtime();
 
-    printf("\n\nFINAL RESULTS:OpenMP tasks\n");
+    printf("\n\nFINAL RESULTS:OpenMP Tasks\n");
     printf("Elapsed time = %.3lf s\n", t1-t0);
     printf("Total number of trials = %d\n", ntrials);
     printf("Total number of function evaluations = %ld\n", funevals);
