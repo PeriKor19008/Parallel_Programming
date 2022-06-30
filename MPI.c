@@ -283,7 +283,7 @@ void MPI (int n_trials, int argc, char **argv){
     double rho = RHO_BEGIN;
     double epsilon = EPSMIN;
     int nvars;
-    int trial, ntrials;
+    int trial;
     double fx;
     int i, jj;
     double t0, t1;
@@ -317,7 +317,7 @@ void MPI (int n_trials, int argc, char **argv){
     srand48(time(0) + rank);
     t0 = get_wtime();
 
-    for (trial = 0; trial < (int)ntrials / size; trial++) {
+    for (trial = 0; trial < (int)n_trials / size; trial++) {
         /* starting guess for rosenbrock test function, search space in [-5, 5) */
         for (i = 0; i < nvars; i++) {
             startpt[i] = 10.0*drand48()-5.0;
@@ -376,7 +376,7 @@ void MPI (int n_trials, int argc, char **argv){
 
   	 printf("\n\nFINAL RESULTS: MPI code\n");
  	 printf("Elapsed time = %.3lf s\n", t1-t0);
-	 printf("Total number of trials = %d\n", ntrials);
+	 printf("Total number of trials = %d\n", n_trials);
 	 printf("Total number of function evaluations = %ld\n", funevals);
    	 printf("Best result at trial %d used %d iterations, and returned\n", best_trial, best_jj);
 
