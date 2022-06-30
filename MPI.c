@@ -350,49 +350,31 @@ void MPI (int n_trials, int argc, char **argv){
     MPI_Allreduce(&best_fx, &best_fx_and_rank, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
 
-    if (best_fx_and_rank.rank != 0)
-    {
-	if (rank == best_fx_and_rank.rank)
-	{
-		MPI_Send(&best_trial, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-		MPI_Send(&best_jj, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
-		MPI_Send(&best_pt, MAXVARS, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
-	}
-	else if (rank == 0)
-	{
-		MPI_Status status;
-		MPI_Recv(&best_trial, 1, MPI_INT, best_fx_and_rank.rank, 0, MPI_COMM_WORLD, &status);
-		MPI_Recv(&best_jj, 1, MPI_INT, best_fx_and_rank.rank, 1, MPI_COMM_WORLD, &status);
-		MPI_Recv(&best_pt, MAXVARS, MPI_DOUBLE, best_fx_and_rank.rank, 2, MPI_COMM_WORLD, &status);
-	}
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    if (rank == 0)
+    if (rank == best_fx_and_rank.rank)
     {
     	best_fx.value = best_fx_and_rank.value;
 
    	 t1 = get_wtime();
 
-  	 printf("\n\nFINAL RESULTS: MPI code\n");
+  	 printf("FINAL RESULTS: MPI code\n");
  	 printf("Elapsed time = %.3lf s\n", t1-t0);
-	 printf("Total number of trials = %d\n", n_trials);
-	 printf("Total number of function evaluations = %ld\n", funevals);
-   	 printf("Best result at trial %d used %d iterations, and returned\n", best_trial, best_jj);
+	 printf("Total Number of Trials = %d\n", n_trials);
+	 printf("Total Number of Function Evaluations = %ld\n", funevals);
+   	 printf("Best Result at Trial %d Used %d Iterations, and Returned\n", best_trial, best_jj);
 
    	 for (i = 0; i < nvars; i++) 
 	 {
        	 	printf("x[%3d] = %15.7le \n", i, best_pt[i]);
    	 }
 
-    	 printf("f(x) = %15.7le\n", best_fx.value);
+    	 printf("f(x)   = %15.7le\n", best_fx.value);
     }
     MPI_Finalize();
 }
 
 int main(int argc, char **argv)
 {
-    int N=64000;
+    int N=640;
     MPI(N, argc, argv);
     return 0;
 }

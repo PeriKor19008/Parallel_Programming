@@ -1,0 +1,2 @@
+1. Run make script to compile all .c files.
+2. Choose which executable generated you want to launch (one will be generated for every parallelization method.

@@ -343,15 +343,15 @@ void OpenMpTasks(int n_trials){
     }
     t1 = get_wtime();
 
-    printf("\n\nFINAL RESULTS:OpenMP Tasks\n");
-    printf("Elapsed time = %.3lf s\n", t1-t0);
-    printf("Total number of trials = %d\n", n_trials);
-    printf("Total number of function evaluations = %ld\n", funevals);
-    printf("Best result at trial %d used %d iterations, and returned\n", best_trial, best_jj);
+    printf("FINAL RESULTS:OpenMP Tasks\n");
+    printf("Elapsed Time = %.3lf s\n", t1-t0);
+    printf("Total Number of Trials = %d\n", n_trials);
+    printf("Total Number of Function Evaluations = %ld\n", funevals);
+    printf("Best Result at Trial %d Used %d Iterations, and Returned\n", best_trial, best_jj);
     for (i = 0; i < nvars; i++) {
         printf("x[%3d] = %15.7le \n", i, best_pt[i]);
     }
-    printf("f(x) = %15.7le\n", best_fx);
+    printf("f(x)   = %15.7le\n", best_fx);
 }
 
 int main(int argc, char **argv)
