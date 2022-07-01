@@ -342,8 +342,7 @@ void MPI (int n_trials, int argc, char **argv){
             for (i = 0; i < nvars; i++)
                 best_pt[i] = endpt[i];
         }
-	if(rank == 0)
-        printf("%d\n",trial);
+        //printf("%d\n",trial);
 	
     }
 
