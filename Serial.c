@@ -329,7 +329,7 @@ void serialized(int n_trials){
     }
     t1 = get_wtime();
 
-    printf("FINAL RESULTS:Serial code\n");
+    printf("FINAL RESULTS: Serial Code\n");
     printf("Elapsed Time = %.3lf s\n", t1-t0);
     printf("Total Number of Trials = %d\n", n_trials);
     printf("Total Number of Function Evaluations = %ld\n", funevals);

@@ -299,7 +299,7 @@ void OpenMp(int n_trials){
     srand48(time(0));
 
     t0 = get_wtime();
-    omp_set_num_threads(16);
+    omp_set_num_threads(4);
 #pragma omp parallel private(endpt)
     {
         double local_best_fx=best_fx;
@@ -311,7 +311,7 @@ void OpenMp(int n_trials){
                 /* starting guess for rosenbrock test function, search space in [-5, 5) */
                 for (i = 0; i < nvars; i++) {
                     startpt[i] = 10.0*drand48()-5.0;
-		    printf("startpt[%d] = %lf\n", i, startpt[i]);
+		    //printf("startpt[%d] = %lf\n", i, startpt[i]);
                 }
 
                 jj = hooke(nvars, startpt, endpt, rho, epsilon, itermax);
@@ -343,7 +343,7 @@ void OpenMp(int n_trials){
     }
     t1 = get_wtime();
 
-    printf("FINAL RESULTS:OpenMP\n");
+    printf("FINAL RESULTS: OpenMP Code\n");
     printf("Elapsed Time = %.3lf s\n", t1-t0);
     printf("Total Number of Trials = %d\n", n_trials);
     printf("Total Number of Function Evaluations = %ld\n", funevals);

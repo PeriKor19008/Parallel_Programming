@@ -299,7 +299,7 @@ void OpenMpTasks(int n_trials){
     srand48(time(0));
 
     t0 = get_wtime();
-#pragma omp parallel num_threads(16)
+#pragma omp parallel num_threads(4)
     {
 #pragma omp single nowait
         {
@@ -343,7 +343,7 @@ void OpenMpTasks(int n_trials){
     }
     t1 = get_wtime();
 
-    printf("FINAL RESULTS:OpenMP Tasks\n");
+    printf("FINAL RESULTS: OpenMP Tasks Code\n");
     printf("Elapsed Time = %.3lf s\n", t1-t0);
     printf("Total Number of Trials = %d\n", n_trials);
     printf("Total Number of Function Evaluations = %ld\n", funevals);

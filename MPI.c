@@ -342,7 +342,8 @@ void MPI (int n_trials, int argc, char **argv){
             for (i = 0; i < nvars; i++)
                 best_pt[i] = endpt[i];
         }
-        //printf("%d\n",trial);
+	if(rank == 0)
+        printf("%d\n",trial);
 	
     }
 
@@ -356,7 +357,7 @@ void MPI (int n_trials, int argc, char **argv){
 
    	 t1 = get_wtime();
 
-  	 printf("FINAL RESULTS: MPI code\n");
+  	 printf("FINAL RESULTS: MPI Code\n");
  	 printf("Elapsed time = %.3lf s\n", t1-t0);
 	 printf("Total Number of Trials = %d\n", n_trials);
 	 printf("Total Number of Function Evaluations = %ld\n", funevals);
