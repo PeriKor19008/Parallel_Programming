@@ -305,7 +305,7 @@ void OpenMp(int n_trials){
         double local_best_fx=best_fx;
 
         double fx;
-#pragma omp for
+#pragma omp for schedule(dynamic)
 
             for (trial = 0; trial < n_trials; trial++) {
                 /* starting guess for rosenbrock test function, search space in [-5, 5) */
